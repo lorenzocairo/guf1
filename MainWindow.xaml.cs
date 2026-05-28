@@ -24,6 +24,18 @@ public partial class MainWindow : Window
     ];
 
     public ObservableCollection<BirdNetResult> Results { get; } = [];
+    public bool AreGroupsExpanded
+    {
+        get => (bool)GetValue(AreGroupsExpandedProperty);
+        set => SetValue(AreGroupsExpandedProperty, value);
+    }
+
+    public static readonly DependencyProperty AreGroupsExpandedProperty =
+        DependencyProperty.Register(
+            nameof(AreGroupsExpanded),
+            typeof(bool),
+            typeof(MainWindow),
+            new PropertyMetadata(true));
 
     public MainWindow()
     {
@@ -289,11 +301,14 @@ public partial class MainWindow : Window
 
     private void ExpandOrCollapseAllGroups(bool isExpanded)
     {
-        ResultsGrid.UpdateLayout();
-        foreach (var expander in FindVisualChildren<Expander>(ResultsGrid))
+        if (AreGroupsExpanded == isExpanded)
         {
-            expander.IsExpanded = isExpanded;
+            AreGroupsExpanded = !isExpanded;
         }
+
+        AreGroupsExpanded = isExpanded;
+        CollectionViewSource.GetDefaultView(Results).Refresh();
+        ResultsGrid.UpdateLayout();
     }
 
     private void SetLoading(bool isLoading)
@@ -302,24 +317,6 @@ public partial class MainWindow : Window
         ResultsGrid.IsEnabled = !isLoading;
         ExpandAllButton.IsEnabled = !isLoading;
         CollapseAllButton.IsEnabled = !isLoading;
-    }
-
-    private static IEnumerable<T> FindVisualChildren<T>(DependencyObject parent)
-        where T : DependencyObject
-    {
-        for (var i = 0; i < System.Windows.Media.VisualTreeHelper.GetChildrenCount(parent); i++)
-        {
-            var child = System.Windows.Media.VisualTreeHelper.GetChild(parent, i);
-            if (child is T typedChild)
-            {
-                yield return typedChild;
-            }
-
-            foreach (var descendant in FindVisualChildren<T>(child))
-            {
-                yield return descendant;
-            }
-        }
     }
 }
 
