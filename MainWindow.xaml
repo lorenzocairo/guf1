@@ -175,23 +175,33 @@
                     <DataGridTemplateColumn Header="File audio" Width="520" MinWidth="220">
                         <DataGridTemplateColumn.CellTemplate>
                             <DataTemplate>
-                                <TextBlock TextTrimming="CharacterEllipsis">
-                                    <Hyperlink Click="AudioFileLink_Click"
-                                               ToolTip="{Binding AudioFile}">
-                                        <Hyperlink.Style>
-                                            <Style TargetType="{x:Type Hyperlink}">
-                                                <Setter Property="Foreground" Value="#005A9E"/>
-                                                <Style.Triggers>
-                                                    <DataTrigger Binding="{Binding IsSelected, RelativeSource={RelativeSource AncestorType={x:Type DataGridRow}}}"
-                                                                 Value="True">
-                                                        <Setter Property="Foreground" Value="White"/>
-                                                    </DataTrigger>
-                                                </Style.Triggers>
-                                            </Style>
-                                        </Hyperlink.Style>
-                                        <Run Text="{Binding AudioFile}"/>
-                                    </Hyperlink>
-                                </TextBlock>
+                                <DockPanel LastChildFill="True">
+                                    <Button DockPanel.Dock="Right"
+                                            MinWidth="62"
+                                            Height="24"
+                                            Margin="8,0,0,0"
+                                            Padding="8,0"
+                                            Click="AudioPreview_Click"
+                                            Content="Ascolta"/>
+                                    <TextBlock TextTrimming="CharacterEllipsis"
+                                               VerticalAlignment="Center">
+                                        <Hyperlink Click="AudioFileLink_Click"
+                                                   ToolTip="{Binding AudioFile}">
+                                            <Hyperlink.Style>
+                                                <Style TargetType="{x:Type Hyperlink}">
+                                                    <Setter Property="Foreground" Value="#005A9E"/>
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding IsSelected, RelativeSource={RelativeSource AncestorType={x:Type DataGridRow}}}"
+                                                                     Value="True">
+                                                            <Setter Property="Foreground" Value="White"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Hyperlink.Style>
+                                            <Run Text="{Binding AudioFile}"/>
+                                        </Hyperlink>
+                                    </TextBlock>
+                                </DockPanel>
                             </DataTemplate>
                         </DataGridTemplateColumn.CellTemplate>
                     </DataGridTemplateColumn>

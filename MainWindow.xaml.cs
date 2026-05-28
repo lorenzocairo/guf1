@@ -205,6 +205,7 @@ public partial class MainWindow : Window
                 {
                     SortDate = GetDayFromFileName(csvFile),
                     StartValue = startSeconds,
+                    EndValue = endSeconds,
                     SourceCsv = Path.GetFileName(csvFile),
                     StartSeconds = startSeconds.ToString("0.###", CultureInfo.InvariantCulture),
                     EndSeconds = endSeconds.ToString("0.###", CultureInfo.InvariantCulture),
@@ -349,6 +350,53 @@ public partial class MainWindow : Window
         }
     }
 
+    private void AudioPreview_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not FrameworkElement { DataContext: BirdNetResult result })
+        {
+            return;
+        }
+
+        try
+        {
+            var audioFilePath = ResolveAudioFilePath(result.AudioFile);
+            if (string.IsNullOrWhiteSpace(audioFilePath))
+            {
+                ShowMessage("Il percorso del file audio non e disponibile.");
+                return;
+            }
+
+            if (!File.Exists(audioFilePath))
+            {
+                ShowMessage($"File non trovato: {audioFilePath}");
+                return;
+            }
+
+            if (result.EndValue <= result.StartValue)
+            {
+                ShowMessage("Intervallo audio non valido.");
+                return;
+            }
+
+            var preview = new AudioPreviewWindow(
+                audioFilePath,
+                result.StartValue,
+                result.EndValue,
+                result.CommonName,
+                result.ScientificName,
+                result.Confidence)
+            {
+                Owner = this
+            };
+
+            preview.ShowDialog();
+        }
+        catch (Exception ex) when (ex is ArgumentException or NotSupportedException or IOException or UnauthorizedAccessException)
+        {
+            ShowMessage($"Impossibile aprire l'anteprima audio: {ex.Message}");
+        }
+    }
+
     private string ResolveAudioFilePath(string audioFile)
     {
         if (string.IsNullOrWhiteSpace(audioFile))
@@ -409,6 +457,7 @@ public sealed class BirdNetResult
 
     public DateTime? SortDate { get; init; }
     public double StartValue { get; init; }
+    public double EndValue { get; init; }
     public int DayIndex { get; set; }
     public string Day => SortDate?.ToString("dd/MM/yyyy", CultureInfo.CurrentCulture) ?? "Data non riconosciuta";
     public MediaBrush DayBackground => DayIndex % 2 == 0 ? EvenDayBackground : OddDayBackground;
