@@ -1,10 +1,12 @@
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Data;
+using System.Windows.Documents;
 using MediaBrush = System.Windows.Media.Brush;
 using MediaColor = System.Windows.Media.Color;
 using SolidMediaBrush = System.Windows.Media.SolidColorBrush;
@@ -13,6 +15,8 @@ namespace Guf1;
 
 public partial class MainWindow : Window
 {
+    private string _selectedFolderPath = string.Empty;
+
     private static readonly string[] ExpectedHeaders =
     [
         "Start (s)",
@@ -69,6 +73,7 @@ public partial class MainWindow : Window
     private async Task LoadFolderAsync(string folderPath)
     {
         Results.Clear();
+        _selectedFolderPath = folderPath;
         SelectedFolderText.Text = folderPath;
         HideMessage();
         SetLoading(isLoading: true);
@@ -297,6 +302,63 @@ public partial class MainWindow : Window
     private void CollapseAll_Click(object sender, RoutedEventArgs e)
     {
         ExpandOrCollapseAllGroups(isExpanded: false);
+    }
+
+    private void AudioFileLink_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not Hyperlink { DataContext: BirdNetResult result })
+        {
+            return;
+        }
+
+        try
+        {
+            var audioFilePath = ResolveAudioFilePath(result.AudioFile);
+            if (string.IsNullOrWhiteSpace(audioFilePath))
+            {
+                ShowMessage("Il percorso del file audio non e disponibile.");
+                return;
+            }
+
+            if (File.Exists(audioFilePath))
+            {
+                Process.Start(new ProcessStartInfo
+                {
+                    FileName = "explorer.exe",
+                    Arguments = $"/select,\"{audioFilePath}\"",
+                    UseShellExecute = true
+                });
+                return;
+            }
+
+            if (Directory.Exists(audioFilePath))
+            {
+                Process.Start(new ProcessStartInfo
+                {
+                    FileName = audioFilePath,
+                    UseShellExecute = true
+                });
+                return;
+            }
+
+            ShowMessage($"File non trovato: {audioFilePath}");
+        }
+        catch (Exception ex) when (ex is ArgumentException or NotSupportedException or Win32Exception or IOException or UnauthorizedAccessException)
+        {
+            ShowMessage($"Impossibile aprire Esplora file: {ex.Message}");
+        }
+    }
+
+    private string ResolveAudioFilePath(string audioFile)
+    {
+        if (string.IsNullOrWhiteSpace(audioFile))
+        {
+            return string.Empty;
+        }
+
+        return Path.IsPathRooted(audioFile)
+            ? audioFile
+            : Path.GetFullPath(Path.Combine(_selectedFolderPath, audioFile));
     }
 
     private void ExpandOrCollapseAllGroups(bool isExpanded)
