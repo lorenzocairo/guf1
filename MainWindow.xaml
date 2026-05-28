@@ -1,0 +1,199 @@
+<Window x:Class="Guf1.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:Guf1"
+        mc:Ignorable="d"
+        Title="BirdNET CSV Viewer" Height="650" Width="1100" MinHeight="520" MinWidth="860"
+        Background="#F6F7F9">
+    <Grid Margin="18">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <DockPanel Grid.Row="0" LastChildFill="True" Margin="0,0,0,14">
+            <Button DockPanel.Dock="Right"
+                    MinWidth="150"
+                    Height="36"
+                    Padding="14,0"
+                    Click="SelectFolder_Click"
+                    Content="Seleziona cartella"/>
+            <StackPanel>
+                <TextBlock Text="Risultati BirdNET" FontSize="24" FontWeight="SemiBold" Foreground="#20242A"/>
+                <TextBlock Text="Carica tutti i CSV validi da una cartella locale e li mostra in un'unica tabella."
+                           Margin="0,4,0,0"
+                           Foreground="#5B6470"/>
+            </StackPanel>
+        </DockPanel>
+
+        <Border Grid.Row="1"
+                Padding="12"
+                Margin="0,0,0,12"
+                Background="White"
+                BorderBrush="#D9DEE7"
+                BorderThickness="1"
+                CornerRadius="6">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Grid.Column="0">
+                    <TextBlock Text="Cartella selezionata" FontWeight="SemiBold" Foreground="#303640"/>
+                    <TextBlock x:Name="SelectedFolderText"
+                               Text="Nessuna cartella selezionata"
+                               Margin="0,3,18,0"
+                               TextTrimming="CharacterEllipsis"
+                               Foreground="#5B6470"/>
+                </StackPanel>
+
+                <StackPanel Grid.Column="1" Margin="18,0,0,0">
+                    <TextBlock Text="Righe" FontWeight="SemiBold" Foreground="#303640"/>
+                    <TextBlock x:Name="RowsCountText" Text="0" Margin="0,3,0,0" Foreground="#5B6470"/>
+                </StackPanel>
+
+                <StackPanel Grid.Column="2" Margin="18,0,0,0">
+                    <TextBlock Text="CSV validi" FontWeight="SemiBold" Foreground="#303640"/>
+                    <TextBlock x:Name="ValidFilesText" Text="0" Margin="0,3,0,0" Foreground="#5B6470"/>
+                </StackPanel>
+
+                <StackPanel Grid.Column="3" Margin="18,0,0,0">
+                    <TextBlock Text="Scartati" FontWeight="SemiBold" Foreground="#303640"/>
+                    <TextBlock x:Name="InvalidFilesText" Text="0" Margin="0,3,0,0" Foreground="#5B6470"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <DockPanel Grid.Row="2" LastChildFill="False" Margin="0,0,0,8">
+            <Button x:Name="ExpandAllButton"
+                    MinWidth="120"
+                    Height="32"
+                    Padding="12,0"
+                    Margin="0,0,8,0"
+                    Click="ExpandAll_Click"
+                    Content="Espandi tutto"/>
+            <Button x:Name="CollapseAllButton"
+                    MinWidth="120"
+                    Height="32"
+                    Padding="12,0"
+                    Click="CollapseAll_Click"
+                    Content="Comprimi tutto"/>
+        </DockPanel>
+
+        <Grid Grid.Row="3">
+            <DataGrid x:Name="ResultsGrid"
+                      AutoGenerateColumns="False"
+                      CanUserAddRows="False"
+                      CanUserDeleteRows="False"
+                      IsReadOnly="True"
+                      ItemsSource="{Binding Results}"
+                      GridLinesVisibility="Horizontal"
+                      HeadersVisibility="Column"
+                      ColumnWidth="SizeToCells"
+                      Background="White"
+                      BorderBrush="#D9DEE7"
+                      BorderThickness="1"
+                      RowHeight="32">
+                <DataGrid.GroupStyle>
+                    <GroupStyle>
+                        <GroupStyle.ContainerStyle>
+                            <Style TargetType="{x:Type GroupItem}">
+                                <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                                <Setter Property="Template">
+                                    <Setter.Value>
+                                        <ControlTemplate TargetType="{x:Type GroupItem}">
+                                            <DockPanel LastChildFill="True" Margin="0,8,0,0">
+                                                <Border DockPanel.Dock="Top"
+                                                        Background="#EAF1F7"
+                                                        BorderBrush="#CAD8E5"
+                                                        BorderThickness="0,0,0,1"
+                                                        Padding="10,6">
+                                                    <Expander IsExpanded="True">
+                                                        <Expander.Header>
+                                                            <DockPanel MinWidth="220" LastChildFill="True">
+                                                                <TextBlock DockPanel.Dock="Right"
+                                                                           Margin="18,0,0,0"
+                                                                           VerticalAlignment="Center"
+                                                                           Foreground="#4D5967"
+                                                                           Text="{Binding ItemCount, StringFormat={}{0} righe}"/>
+                                                                <TextBlock VerticalAlignment="Center"
+                                                                           FontWeight="SemiBold"
+                                                                           Foreground="#1F2933"
+                                                                           Text="{Binding Name}"/>
+                                                            </DockPanel>
+                                                        </Expander.Header>
+                                                        <ItemsPresenter Margin="-10,6,-10,-6"/>
+                                                    </Expander>
+                                                </Border>
+                                            </DockPanel>
+                                        </ControlTemplate>
+                                    </Setter.Value>
+                                </Setter>
+                            </Style>
+                        </GroupStyle.ContainerStyle>
+                    </GroupStyle>
+                </DataGrid.GroupStyle>
+                <DataGrid.RowStyle>
+                    <Style TargetType="{x:Type DataGridRow}">
+                        <Setter Property="Background" Value="{Binding DayBackground}"/>
+                    </Style>
+                </DataGrid.RowStyle>
+                <DataGrid.CellStyle>
+                    <Style TargetType="{x:Type DataGridCell}">
+                        <Setter Property="Padding" Value="8,0"/>
+                        <Setter Property="BorderThickness" Value="0"/>
+                        <Setter Property="VerticalContentAlignment" Value="Center"/>
+                    </Style>
+                </DataGrid.CellStyle>
+                <DataGrid.Columns>
+                    <DataGridTextColumn Header="File CSV" Binding="{Binding SourceCsv}" MinWidth="260"/>
+                    <DataGridTextColumn Header="Start (s)" Binding="{Binding StartSeconds}" MinWidth="90"/>
+                    <DataGridTextColumn Header="End (s)" Binding="{Binding EndSeconds}" MinWidth="90"/>
+                    <DataGridTextColumn Header="Scientific name" Binding="{Binding ScientificName}" MinWidth="150"/>
+                    <DataGridTextColumn Header="Common name" Binding="{Binding CommonName}" MinWidth="140"/>
+                    <DataGridTextColumn Header="Confidence" Binding="{Binding Confidence}" MinWidth="100"/>
+                    <DataGridTextColumn Header="File audio" Binding="{Binding AudioFile}" MinWidth="520"/>
+                </DataGrid.Columns>
+            </DataGrid>
+
+            <Border x:Name="LoadingOverlay"
+                    Visibility="Collapsed"
+                    Background="#CCFFFFFF"
+                    BorderBrush="#D9DEE7"
+                    BorderThickness="1">
+                <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+                    <ProgressBar Width="260"
+                                 Height="8"
+                                 IsIndeterminate="True"/>
+                    <TextBlock Text="Caricamento file CSV..."
+                               Margin="0,14,0,0"
+                               HorizontalAlignment="Center"
+                               FontWeight="SemiBold"
+                               Foreground="#303640"/>
+                </StackPanel>
+            </Border>
+        </Grid>
+
+        <Border Grid.Row="4"
+                x:Name="MessagePanel"
+                Visibility="Collapsed"
+                Margin="0,12,0,0"
+                Padding="12"
+                Background="#FFF8E8"
+                BorderBrush="#E5C168"
+                BorderThickness="1"
+                CornerRadius="6">
+            <TextBlock x:Name="MessageText"
+                       TextWrapping="Wrap"
+                       Foreground="#624A0B"/>
+        </Border>
+    </Grid>
+</Window>
