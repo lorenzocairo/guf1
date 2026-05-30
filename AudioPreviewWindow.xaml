@@ -33,30 +33,83 @@
                        TextTrimming="CharacterEllipsis"/>
         </StackPanel>
 
-        <Border Grid.Row="1"
-                Background="#101820"
-                BorderBrush="#CBD5E1"
-                BorderThickness="1">
-            <Grid>
-                <Image x:Name="SpectrogramImage"
-                       Stretch="Fill"
-                       SnapsToDevicePixels="True"/>
-                <Canvas x:Name="OverlayCanvas"
-                        IsHitTestVisible="False">
-                    <Line x:Name="PlayheadLine"
-                          Y1="0"
-                          Stroke="#FF3B30"
-                          StrokeThickness="2"
-                          Visibility="Collapsed"/>
-                </Canvas>
-                <TextBlock x:Name="LoadingText"
-                           Text="Calcolo spettrogramma..."
-                           HorizontalAlignment="Center"
+        <Grid Grid.Row="1">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="78"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+
+            <Grid Grid.Row="0" Grid.Column="0" Margin="0,0,8,0">
+                <TextBlock x:Name="YAxisTopText"
+                           HorizontalAlignment="Right"
+                           VerticalAlignment="Top"
+                           Foreground="#303640"/>
+                <TextBlock x:Name="YAxisMiddleText"
+                           HorizontalAlignment="Right"
                            VerticalAlignment="Center"
-                           FontWeight="SemiBold"
-                           Foreground="White"/>
+                           Foreground="#303640"/>
+                <TextBlock Text="0 Hz"
+                           HorizontalAlignment="Right"
+                           VerticalAlignment="Bottom"
+                           Foreground="#303640"/>
             </Grid>
-        </Border>
+
+            <TextBlock Grid.Row="0"
+                       Grid.Column="0"
+                       Text="Frequenza"
+                       Foreground="#303640"
+                       HorizontalAlignment="Center"
+                       VerticalAlignment="Center"
+                       RenderTransformOrigin="0.5,0.5">
+                <TextBlock.RenderTransform>
+                    <RotateTransform Angle="-90"/>
+                </TextBlock.RenderTransform>
+            </TextBlock>
+
+            <Border Grid.Row="0"
+                    Grid.Column="1"
+                    Background="Black"
+                    BorderBrush="#CBD5E1"
+                    BorderThickness="1">
+                <Grid>
+                    <Image x:Name="SpectrogramImage"
+                           Stretch="Fill"
+                           SnapsToDevicePixels="True"/>
+                    <Canvas x:Name="OverlayCanvas"
+                            IsHitTestVisible="False">
+                        <Line x:Name="PlayheadLine"
+                              Y1="0"
+                              Stroke="#FF3B30"
+                              StrokeThickness="2"
+                              Visibility="Collapsed"/>
+                    </Canvas>
+                    <TextBlock x:Name="LoadingText"
+                               Text="Calcolo spettrogramma..."
+                               HorizontalAlignment="Center"
+                               VerticalAlignment="Center"
+                               FontWeight="SemiBold"
+                               Foreground="White"/>
+                </Grid>
+            </Border>
+
+            <Grid Grid.Row="1"
+                  Grid.Column="1"
+                  Margin="0,6,0,0">
+                <TextBlock Text="0.00 s"
+                           HorizontalAlignment="Left"
+                           Foreground="#303640"/>
+                <TextBlock x:Name="XAxisEndText"
+                           HorizontalAlignment="Right"
+                           Foreground="#303640"/>
+                <TextBlock Text="Tempo (s)"
+                           HorizontalAlignment="Center"
+                           Foreground="#303640"/>
+            </Grid>
+        </Grid>
 
         <Grid Grid.Row="2" Margin="0,12,0,0">
             <Grid.ColumnDefinitions>
@@ -69,30 +122,33 @@
 
             <Button x:Name="PlayPauseButton"
                     Grid.Column="0"
-                    MinWidth="82"
+                    MinWidth="42"
                     Height="32"
                     Padding="12,0"
                     Margin="0,0,8,0"
                     Click="PlayPause_Click"
-                    Content="Play"
+                    Content="&#x25B6;"
+                    ToolTip="Play/Pausa"
                     IsEnabled="False"/>
             <Button x:Name="StopButton"
                     Grid.Column="1"
-                    MinWidth="72"
+                    MinWidth="42"
                     Height="32"
                     Padding="12,0"
                     Margin="0,0,8,0"
                     Click="Stop_Click"
-                    Content="Stop"
+                    Content="&#x25A0;"
+                    ToolTip="Stop"
                     IsEnabled="False"/>
             <Button x:Name="ReplayButton"
                     Grid.Column="2"
-                    MinWidth="78"
+                    MinWidth="42"
                     Height="32"
                     Padding="12,0"
                     Margin="0,0,12,0"
                     Click="Replay_Click"
-                    Content="Replay"
+                    Content="&#x21BB;"
+                    ToolTip="Replay"
                     IsEnabled="False"/>
             <Slider x:Name="PositionSlider"
                     Grid.Column="3"

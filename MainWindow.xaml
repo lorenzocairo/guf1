@@ -182,7 +182,8 @@
                                             Margin="8,0,0,0"
                                             Padding="8,0"
                                             Click="AudioPreview_Click"
-                                            Content="Ascolta"/>
+                                            Content="&#x25B6;"
+                                            ToolTip="Ascolta lo spezzone"/>
                                     <TextBlock TextTrimming="CharacterEllipsis"
                                                VerticalAlignment="Center">
                                         <Hyperlink Click="AudioFileLink_Click"

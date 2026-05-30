@@ -46,6 +46,7 @@ public partial class AudioPreviewWindow : Window
             confidence);
         PathText.Text = audioFilePath;
         PositionSlider.Maximum = _durationSeconds;
+        XAxisEndText.Text = string.Format(CultureInfo.CurrentCulture, "{0:0.00} s", _durationSeconds);
         UpdateTimeText(0);
 
         _timer = new DispatcherTimer
@@ -62,19 +63,6 @@ public partial class AudioPreviewWindow : Window
     {
         try
         {
-            var image = await Task.Run(() => SpectrogramRenderer.Render(_audioFilePath, _startSeconds, _endSeconds));
-            SpectrogramImage.Source = BitmapSource.Create(
-                image.Width,
-                image.Height,
-                96,
-                96,
-                PixelFormats.Bgr32,
-                null,
-                image.Pixels,
-                image.Stride);
-            LoadingText.Text = string.Empty;
-            LoadingText.Visibility = Visibility.Collapsed;
-
             PlayPauseButton.IsEnabled = true;
             StopButton.IsEnabled = true;
             ReplayButton.IsEnabled = true;
@@ -84,6 +72,7 @@ public partial class AudioPreviewWindow : Window
             _player.MediaFailed += (_, args) => ShowMessage($"Impossibile riprodurre il file: {args.ErrorException.Message}");
             SeekRelative(0);
             UpdatePlayhead();
+            await RenderSpectrogramAsync();
         }
         catch (Exception ex) when (ex is InvalidDataException or IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
         {
@@ -108,7 +97,7 @@ public partial class AudioPreviewWindow : Window
         _player.Play();
         _timer.Start();
         _isPlaying = true;
-        PlayPauseButton.Content = "Pausa";
+        PlayPauseButton.Content = "\u23F8";
     }
 
     private void Stop_Click(object sender, RoutedEventArgs e)
@@ -124,7 +113,7 @@ public partial class AudioPreviewWindow : Window
             _player.Play();
             _timer.Start();
             _isPlaying = true;
-            PlayPauseButton.Content = "Pausa";
+            PlayPauseButton.Content = "\u23F8";
         }
     }
 
@@ -179,7 +168,7 @@ public partial class AudioPreviewWindow : Window
         _player.Pause();
         _timer.Stop();
         _isPlaying = false;
-        PlayPauseButton.Content = "Play";
+        PlayPauseButton.Content = "\u25B6";
     }
 
     private void StopAtStart()
@@ -221,6 +210,51 @@ public partial class AudioPreviewWindow : Window
             _durationSeconds);
     }
 
+    private async Task RenderSpectrogramAsync()
+    {
+        LoadingText.Text = "Calcolo spettrogramma...";
+        LoadingText.Visibility = Visibility.Visible;
+        MessagePanel.Visibility = Visibility.Collapsed;
+
+        try
+        {
+            var image = await Task.Run(() => SpectrogramRenderer.Render(_audioFilePath, _startSeconds, _endSeconds));
+
+            SpectrogramImage.Source = BitmapSource.Create(
+                image.Width,
+                image.Height,
+                300,
+                96,
+                PixelFormats.Bgr32,
+                null,
+                image.Pixels,
+                image.Stride);
+            YAxisTopText.Text = FormatFrequency(image.MaxFrequencyHertz);
+            YAxisMiddleText.Text = FormatFrequency(GetMiddleMelFrequency(image.MinFrequencyHertz, image.MaxFrequencyHertz));
+            LoadingText.Text = string.Empty;
+            LoadingText.Visibility = Visibility.Collapsed;
+        }
+        catch (Exception ex) when (ex is InvalidDataException or IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
+        {
+            LoadingText.Visibility = Visibility.Collapsed;
+            ShowMessage($"Impossibile calcolare lo spettrogramma: {ex.Message}");
+        }
+    }
+
+    private static string FormatFrequency(double hertz)
+    {
+        return hertz >= 1000
+            ? string.Format(CultureInfo.CurrentCulture, "{0:0.#} kHz", hertz / 1000)
+            : string.Format(CultureInfo.CurrentCulture, "{0:0} Hz", hertz);
+    }
+
+    private static double GetMiddleMelFrequency(double minHertz, double maxHertz)
+    {
+        var minMel = 2595 * Math.Log10(1 + minHertz / 700);
+        var maxMel = 2595 * Math.Log10(1 + maxHertz / 700);
+        return 700 * (Math.Pow(10, ((minMel + maxMel) / 2) / 2595) - 1);
+    }
+
     private void ShowMessage(string message)
     {
         MessageText.Text = message;
@@ -236,16 +270,20 @@ public partial class AudioPreviewWindow : Window
 
 public sealed class SpectrogramData
 {
-    public SpectrogramData(int width, int height, byte[] pixels, int stride)
+    public SpectrogramData(int width, int height, byte[] pixels, int stride, double minFrequencyHertz, double maxFrequencyHertz)
     {
         Width = width;
         Height = height;
         Pixels = pixels;
         Stride = stride;
+        MinFrequencyHertz = minFrequencyHertz;
+        MaxFrequencyHertz = maxFrequencyHertz;
     }
 
     public int Width { get; }
     public int Height { get; }
     public byte[] Pixels { get; }
     public int Stride { get; }
+    public double MinFrequencyHertz { get; }
+    public double MaxFrequencyHertz { get; }
 }

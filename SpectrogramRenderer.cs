@@ -3,10 +3,13 @@ namespace Guf1;
 
 public static class SpectrogramRenderer
 {
-    private const int FftSize = 2048;
-    private const int ImageHeight = 360;
-    private const double MinDecibels = -95;
-    private const double MaxDecibels = -20;
+    private const int WindowSize = 2048;
+    private const int ZeroPaddingFactor = 2;
+    private const int ImageHeight = 480;
+    private const double MinFrequencyHertz = 1;
+    private const double GainDecibels = 20;
+    private const double RangeDecibels = 80;
+    public const int DefaultMaxFrequencyHertz = 20000;
 
     public static SpectrogramData Render(string wavFilePath, double startSeconds, double endSeconds)
     {
@@ -21,21 +24,35 @@ public static class SpectrogramRenderer
             throw new InvalidDataException("L'intervallo selezionato non contiene campioni audio.");
         }
 
-        var pixels = CreateSpectrogramPixels(segment.Samples, segment.SampleRate, out var width);
-        return new SpectrogramData(width, ImageHeight, pixels, width * 4);
+        var pixels = CreateSpectrogramPixels(
+            segment.Samples,
+            segment.SampleRate,
+            out var width,
+            out var minFrequencyHertz,
+            out var maxFrequencyHertz);
+        return new SpectrogramData(width, ImageHeight, pixels, width * 4, minFrequencyHertz, maxFrequencyHertz);
     }
 
-    private static byte[] CreateSpectrogramPixels(float[] samples, int sampleRate, out int width)
+    private static byte[] CreateSpectrogramPixels(
+        float[] samples,
+        int sampleRate,
+        out int width,
+        out double minFrequencyHertz,
+        out double maxFrequencyHertz)
     {
-        var fftSize = Math.Min(FftSize, NextPowerOfTwo(Math.Max(64, samples.Length)));
-        var hopSize = Math.Max(1, fftSize / 4);
+        var windowSize = Math.Min(WindowSize, NextPowerOfTwo(Math.Max(64, samples.Length)));
+        var fftSize = NextPowerOfTwo(windowSize * ZeroPaddingFactor);
+        var hopSize = Math.Max(1, windowSize / 8);
         width = Math.Max(1, 1 + Math.Max(0, samples.Length - 1) / hopSize);
-        var pixels = new byte[width * ImageHeight * 4];
-        var window = CreateHannWindow(fftSize);
+        var decibelColumns = new double[width][];
+        var window = CreateHannWindow(windowSize);
         var real = new double[fftSize];
         var imaginary = new double[fftSize];
-        var maxFrequency = Math.Min(sampleRate / 2.0, 12000);
-        var maxBin = Math.Max(1, (int)Math.Floor(maxFrequency / sampleRate * fftSize));
+        var nyquistFrequency = sampleRate / 2.0;
+        maxFrequencyHertz = Math.Min(nyquistFrequency, DefaultMaxFrequencyHertz);
+        minFrequencyHertz = Math.Min(MinFrequencyHertz, maxFrequencyHertz / 2);
+        var minMel = HertzToMel(minFrequencyHertz);
+        var maxMel = HertzToMel(maxFrequencyHertz);
 
         for (var x = 0; x < width; x++)
         {
@@ -43,7 +60,7 @@ public static class SpectrogramRenderer
             Array.Clear(imaginary);
 
             var offset = x * hopSize;
-            for (var i = 0; i < fftSize; i++)
+            for (var i = 0; i < windowSize; i++)
             {
                 var sampleIndex = offset + i;
                 real[i] = sampleIndex < samples.Length ? samples[sampleIndex] * window[i] : 0;
@@ -51,18 +68,35 @@ public static class SpectrogramRenderer
 
             FastFourierTransform(real, imaginary);
 
+            var column = new double[ImageHeight];
+            decibelColumns[x] = column;
             for (var y = 0; y < ImageHeight; y++)
             {
                 var frequencyRatio = 1.0 - y / (double)(ImageHeight - 1);
-                var bin = Math.Clamp((int)Math.Round(frequencyRatio * maxBin), 0, fftSize / 2 - 1);
-                var magnitude = Math.Sqrt(real[bin] * real[bin] + imaginary[bin] * imaginary[bin]) / fftSize;
+                var frequency = MelToHertz(minMel + frequencyRatio * (maxMel - minMel));
+                var exactBin = Math.Clamp(frequency / sampleRate * fftSize, 1, fftSize / 2 - 1);
+                var lowerBin = (int)Math.Floor(exactBin);
+                var upperBin = Math.Min(lowerBin + 1, fftSize / 2 - 1);
+                var binFraction = exactBin - lowerBin;
+                var lowerMagnitude = Math.Sqrt(real[lowerBin] * real[lowerBin] + imaginary[lowerBin] * imaginary[lowerBin]);
+                var upperMagnitude = Math.Sqrt(real[upperBin] * real[upperBin] + imaginary[upperBin] * imaginary[upperBin]);
+                var magnitude = (lowerMagnitude * (1 - binFraction) + upperMagnitude * binFraction) / Math.Max(1, windowSize / 2.0);
                 var decibels = 20 * Math.Log10(magnitude + 1e-12);
-                var intensity = Math.Clamp((decibels - MinDecibels) / (MaxDecibels - MinDecibels), 0, 1);
-                var (r, g, b) = Colorize(intensity);
+                column[y] = decibels;
+            }
+        }
+
+        var pixels = new byte[width * ImageHeight * 4];
+        for (var x = 0; x < width; x++)
+        {
+            for (var y = 0; y < ImageHeight; y++)
+            {
+                var intensity = Math.Clamp((decibelColumns[x][y] + GainDecibels + RangeDecibels) / RangeDecibels, 0, 1);
+                var gray = Colorize(intensity);
                 var pixelIndex = (y * width + x) * 4;
-                pixels[pixelIndex] = b;
-                pixels[pixelIndex + 1] = g;
-                pixels[pixelIndex + 2] = r;
+                pixels[pixelIndex] = gray;
+                pixels[pixelIndex + 1] = gray;
+                pixels[pixelIndex + 2] = gray;
                 pixels[pixelIndex + 3] = 255;
             }
         }
@@ -87,30 +121,16 @@ public static class SpectrogramRenderer
         return window;
     }
 
-    private static (byte R, byte G, byte B) Colorize(double value)
+    private static byte Colorize(double value)
     {
         var clamped = Math.Clamp(value, 0, 1);
-        if (clamped < 0.25)
-        {
-            var t = clamped / 0.25;
-            return (0, (byte)(32 * t), (byte)(48 + 96 * t));
-        }
-
-        if (clamped < 0.5)
-        {
-            var t = (clamped - 0.25) / 0.25;
-            return (0, (byte)(32 + 128 * t), (byte)(144 - 80 * t));
-        }
-
-        if (clamped < 0.75)
-        {
-            var t = (clamped - 0.5) / 0.25;
-            return ((byte)(210 * t), (byte)(160 + 70 * t), (byte)(64 - 48 * t));
-        }
-
-        var finalT = (clamped - 0.75) / 0.25;
-        return ((byte)(210 + 45 * finalT), (byte)(230 + 25 * finalT), (byte)(16 + 220 * finalT));
+        var contrasted = Math.Pow(clamped, 0.65);
+        return (byte)Math.Round(215 - contrasted * 205);
     }
+
+    private static double HertzToMel(double hertz) => 2595 * Math.Log10(1 + hertz / 700);
+
+    private static double MelToHertz(double mel) => 700 * (Math.Pow(10, mel / 2595) - 1);
 
     private static int NextPowerOfTwo(int value)
     {
