@@ -49,8 +49,8 @@ public partial class MainWindow : Window
         var view = CollectionViewSource.GetDefaultView(Results);
         view.GroupDescriptions.Add(new PropertyGroupDescription(nameof(BirdNetResult.Day)));
         view.SortDescriptions.Add(new SortDescription(nameof(BirdNetResult.SortDate), ListSortDirection.Ascending));
-        view.SortDescriptions.Add(new SortDescription(nameof(BirdNetResult.SourceCsv), ListSortDirection.Ascending));
         view.SortDescriptions.Add(new SortDescription(nameof(BirdNetResult.StartValue), ListSortDirection.Ascending));
+        view.SortDescriptions.Add(new SortDescription(nameof(BirdNetResult.SourceCsv), ListSortDirection.Ascending));
     }
 
     private async void SelectFolder_Click(object sender, RoutedEventArgs e)
@@ -307,7 +307,7 @@ public partial class MainWindow : Window
 
     private void AudioFileLink_Click(object sender, RoutedEventArgs e)
     {
-        if (sender is not Hyperlink { DataContext: BirdNetResult result })
+        if (sender is not FrameworkElement { DataContext: BirdNetResult result })
         {
             return;
         }
