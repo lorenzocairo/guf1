@@ -42,7 +42,7 @@ public static class SpectrogramRenderer
     {
         var windowSize = Math.Min(WindowSize, NextPowerOfTwo(Math.Max(64, samples.Length)));
         var fftSize = NextPowerOfTwo(windowSize * ZeroPaddingFactor);
-        var hopSize = Math.Max(1, windowSize / 8);
+        var hopSize = Math.Max(1, windowSize / 16);
         width = Math.Max(1, 1 + Math.Max(0, samples.Length - 1) / hopSize);
         var decibelColumns = new double[width][];
         var window = CreateHannWindow(windowSize);
@@ -124,8 +124,8 @@ public static class SpectrogramRenderer
     private static byte Colorize(double value)
     {
         var clamped = Math.Clamp(value, 0, 1);
-        var contrasted = Math.Pow(clamped, 0.65);
-        return (byte)Math.Round(215 - contrasted * 205);
+        var contrasted = Math.Pow(clamped, 0.72);
+        return (byte)Math.Round(218 - contrasted * 190);
     }
 
     private static double HertzToMel(double hertz) => 2595 * Math.Log10(1 + hertz / 700);

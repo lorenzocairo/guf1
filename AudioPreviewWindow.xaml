@@ -78,6 +78,7 @@
                 <Grid>
                     <Image x:Name="SpectrogramImage"
                            Stretch="Fill"
+                           RenderOptions.BitmapScalingMode="NearestNeighbor"
                            SnapsToDevicePixels="True"/>
                     <Canvas x:Name="OverlayCanvas"
                             IsHitTestVisible="False">
