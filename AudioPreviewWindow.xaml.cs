@@ -10,53 +10,121 @@ namespace Guf1;
 
 public partial class AudioPreviewWindow : Window
 {
-    private readonly string _audioFilePath;
-    private readonly double _startSeconds;
-    private readonly double _endSeconds;
-    private readonly double _durationSeconds;
+    private readonly IReadOnlyList<RecordingInfo> _recordings;
+    private int _currentIndex;
+    private string _audioFilePath;
+    private double _startSeconds;
+    private double _endSeconds;
+    private double _durationSeconds;
     private readonly MediaPlayer _player = new();
     private readonly DispatcherTimer _timer;
     private bool _isPlaying;
     private bool _isDraggingSlider;
 
     public AudioPreviewWindow(
-        string audioFilePath,
-        double startSeconds,
-        double endSeconds,
-        string commonName,
-        string scientificName,
-        string confidence)
+        IReadOnlyList<RecordingInfo> recordings,
+        int currentIndex)
     {
         InitializeComponent();
 
-        _audioFilePath = audioFilePath;
-        _startSeconds = startSeconds;
-        _endSeconds = endSeconds;
-        _durationSeconds = Math.Max(0, endSeconds - startSeconds);
+        _recordings = recordings;
+        _currentIndex = currentIndex;
 
-        TitleText.Text = string.IsNullOrWhiteSpace(commonName)
-            ? Path.GetFileName(audioFilePath)
-            : $"{commonName} - {scientificName}";
-        DetailsText.Text = string.Format(
-            CultureInfo.CurrentCulture,
-            "Intervallo {0:0.###}s - {1:0.###}s ({2:0.###}s)  Confidenza {3}",
-            startSeconds,
-            endSeconds,
-            _durationSeconds,
-            confidence);
-        PathText.Text = audioFilePath;
-        PositionSlider.Maximum = _durationSeconds;
-        XAxisEndText.Text = string.Format(CultureInfo.CurrentCulture, "{0:0.00} s", _durationSeconds);
-        UpdateTimeText(0);
+        var rec = recordings[currentIndex];
+        _audioFilePath = rec.AudioFilePath;
+        _startSeconds = rec.StartSeconds;
+        _endSeconds = rec.EndSeconds;
+        _durationSeconds = Math.Max(0, rec.EndSeconds - rec.StartSeconds);
+
+        ApplyRecordingUI(rec);
+        UpdateNavigationButtons();
 
         _timer = new DispatcherTimer
         {
             Interval = TimeSpan.FromMilliseconds(40)
         };
         _timer.Tick += Timer_Tick;
+        _player.MediaFailed += (_, args) => ShowMessage($"Impossibile riprodurre il file: {args.ErrorException.Message}");
 
         Loaded += AudioPreviewWindow_Loaded;
         OverlayCanvas.SizeChanged += (_, _) => UpdatePlayhead();
+    }
+
+    private void ApplyRecordingUI(RecordingInfo rec)
+    {
+        TitleText.Text = string.IsNullOrWhiteSpace(rec.CommonName)
+            ? Path.GetFileName(rec.AudioFilePath)
+            : $"{rec.CommonName} - {rec.ScientificName}";
+        DetailsText.Text = string.Format(
+            CultureInfo.CurrentCulture,
+            "Intervallo {0:0.###}s - {1:0.###}s ({2:0.###}s)  Confidenza {3}",
+            rec.StartSeconds,
+            rec.EndSeconds,
+            _durationSeconds,
+            rec.Confidence);
+        PathText.Text = rec.AudioFilePath;
+        PositionSlider.Maximum = _durationSeconds;
+        XAxisEndText.Text = string.Format(CultureInfo.CurrentCulture, "{0:0.00} s", _durationSeconds);
+        UpdateTimeText(0);
+    }
+
+    private void UpdateNavigationButtons()
+    {
+        PrevButton.IsEnabled = _currentIndex > 0;
+        NextButton.IsEnabled = _currentIndex < _recordings.Count - 1;
+        NavIndexText.Text = string.Format(
+            CultureInfo.CurrentCulture,
+            "{0} / {1}",
+            _currentIndex + 1,
+            _recordings.Count);
+    }
+
+    private void Prev_Click(object sender, RoutedEventArgs e)
+    {
+        if (_currentIndex > 0)
+        {
+            NavigateTo(_currentIndex - 1);
+        }
+    }
+
+    private void Next_Click(object sender, RoutedEventArgs e)
+    {
+        if (_currentIndex < _recordings.Count - 1)
+        {
+            NavigateTo(_currentIndex + 1);
+        }
+    }
+
+    private async void NavigateTo(int index)
+    {
+        _timer.Stop();
+        _isPlaying = false;
+        _player.Close();
+        PlayPauseButton.Content = "▶";
+
+        _currentIndex = index;
+        var rec = _recordings[index];
+        _audioFilePath = rec.AudioFilePath;
+        _startSeconds = rec.StartSeconds;
+        _endSeconds = rec.EndSeconds;
+        _durationSeconds = Math.Max(0, rec.EndSeconds - rec.StartSeconds);
+
+        ApplyRecordingUI(rec);
+        UpdateNavigationButtons();
+        MessagePanel.Visibility = Visibility.Collapsed;
+
+        try
+        {
+            _player.Open(new Uri(_audioFilePath, UriKind.Absolute));
+            SeekRelative(0);
+            UpdatePlayhead();
+            await RenderSpectrogramAsync();
+        }
+        catch (Exception ex) when (ex is InvalidDataException or IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
+        {
+            LoadingText.Visibility = Visibility.Collapsed;
+            ShowMessage($"Impossibile caricare la registrazione: {ex.Message}");
+        }
     }
 
     private async void AudioPreviewWindow_Loaded(object sender, RoutedEventArgs e)
@@ -69,7 +137,6 @@ public partial class AudioPreviewWindow : Window
             PositionSlider.IsEnabled = true;
 
             _player.Open(new Uri(_audioFilePath, UriKind.Absolute));
-            _player.MediaFailed += (_, args) => ShowMessage($"Impossibile riprodurre il file: {args.ErrorException.Message}");
             SeekRelative(0);
             UpdatePlayhead();
             await RenderSpectrogramAsync();
@@ -267,6 +334,14 @@ public partial class AudioPreviewWindow : Window
         _player.Close();
     }
 }
+
+public sealed record RecordingInfo(
+    string AudioFilePath,
+    double StartSeconds,
+    double EndSeconds,
+    string CommonName,
+    string ScientificName,
+    string Confidence);
 
 public sealed class SpectrogramData
 {

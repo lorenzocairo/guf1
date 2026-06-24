@@ -6,6 +6,8 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <UseWPF>true</UseWPF>
+    <AssemblyTitle>GUF1</AssemblyTitle>
+    <Product>GUF1</Product>
     <UseWindowsForms>true</UseWindowsForms>
   </PropertyGroup>
 

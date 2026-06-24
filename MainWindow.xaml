@@ -5,7 +5,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:Guf1"
         mc:Ignorable="d"
-        Title="BirdNET CSV Viewer" Height="650" Width="1100" MinHeight="520" MinWidth="860"
+        Title="GUF1" Height="650" Width="1100" MinHeight="520" MinWidth="860"
         Background="#F6F7F9">
     <Grid Margin="18">
         <Grid.RowDefinitions>

@@ -378,13 +378,27 @@ public partial class MainWindow : Window
                 return;
             }
 
-            var preview = new AudioPreviewWindow(
-                audioFilePath,
-                result.StartValue,
-                result.EndValue,
-                result.CommonName,
-                result.ScientificName,
-                result.Confidence)
+            var view = CollectionViewSource.GetDefaultView(Results);
+            var recordings = new List<RecordingInfo>();
+            var currentIndex = 0;
+            var i = 0;
+            foreach (BirdNetResult item in view)
+            {
+                recordings.Add(new RecordingInfo(
+                    ResolveAudioFilePath(item.AudioFile),
+                    item.StartValue,
+                    item.EndValue,
+                    item.CommonName,
+                    item.ScientificName,
+                    item.Confidence));
+                if (ReferenceEquals(item, result))
+                {
+                    currentIndex = i;
+                }
+                i++;
+            }
+
+            var preview = new AudioPreviewWindow(recordings, currentIndex)
             {
                 Owner = this
             };
