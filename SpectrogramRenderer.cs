@@ -11,7 +11,11 @@ public static class SpectrogramRenderer
     private const double RangeDecibels = 80;
     public const int DefaultMaxFrequencyHertz = 20000;
 
-    public static SpectrogramData Render(string wavFilePath, double startSeconds, double endSeconds)
+    public static SpectrogramData Render(
+        string wavFilePath,
+        double startSeconds,
+        double endSeconds,
+        CancellationToken cancellationToken = default)
     {
         if (endSeconds <= startSeconds)
         {
@@ -27,6 +31,7 @@ public static class SpectrogramRenderer
         var pixels = CreateSpectrogramPixels(
             segment.Samples,
             segment.SampleRate,
+            cancellationToken,
             out var width,
             out var minFrequencyHertz,
             out var maxFrequencyHertz);
@@ -36,6 +41,7 @@ public static class SpectrogramRenderer
     private static byte[] CreateSpectrogramPixels(
         float[] samples,
         int sampleRate,
+        CancellationToken cancellationToken,
         out int width,
         out double minFrequencyHertz,
         out double maxFrequencyHertz)
@@ -56,6 +62,7 @@ public static class SpectrogramRenderer
 
         for (var x = 0; x < width; x++)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             Array.Clear(real);
             Array.Clear(imaginary);
 
