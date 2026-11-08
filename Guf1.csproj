@@ -9,6 +9,11 @@
     <AssemblyTitle>GUF1</AssemblyTitle>
     <Product>GUF1</Product>
     <UseWindowsForms>true</UseWindowsForms>
+    <ApplicationIcon>app.ico</ApplicationIcon>
   </PropertyGroup>
+
+  <ItemGroup>
+    <Resource Include="app.ico" />
+  </ItemGroup>
 
 </Project>
