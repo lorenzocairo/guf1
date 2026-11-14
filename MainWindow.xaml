@@ -19,6 +19,12 @@
                     Cursor="Hand"
                     MouseLeftButtonUp="DayHeader_MouseLeftButtonUp">
                 <DockPanel LastChildFill="True">
+                    <CheckBox DockPanel.Dock="Right"
+                              Margin="18,0,0,0"
+                              VerticalAlignment="Center"
+                              Content="Ascoltato"
+                              IsChecked="{Binding IsListened, Mode=TwoWay}"
+                              ToolTip="Segna il giorno come ascoltato"/>
                     <TextBlock DockPanel.Dock="Right"
                                Margin="18,0,0,0"
                                VerticalAlignment="Center"
@@ -37,6 +43,7 @@
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
@@ -269,6 +276,11 @@
 
                                             <DockPanel Margin="0,8,0,0" LastChildFill="True">
                                                 <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                                                    <CheckBox Margin="0,0,10,0"
+                                                              VerticalAlignment="Center"
+                                                              Content="Confermato"
+                                                              IsChecked="{Binding IsConfirmed, Mode=TwoWay}"
+                                                              ToolTip="Conferma questo spezzone"/>
                                                     <Button Width="28"
                                                             Height="24"
                                                             Padding="0"
@@ -356,5 +368,12 @@
                        TextWrapping="Wrap"
                        Foreground="#624A0B"/>
         </Border>
+
+        <TextBlock Grid.Row="4"
+                   x:Name="VersionText"
+                   Margin="0,10,0,0"
+                   HorizontalAlignment="Left"
+                   FontSize="11"
+                   Foreground="#8A939E"/>
     </Grid>
 </Window>

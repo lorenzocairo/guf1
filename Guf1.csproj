@@ -10,6 +10,7 @@
     <Product>GUF1</Product>
     <UseWindowsForms>true</UseWindowsForms>
     <ApplicationIcon>app.ico</ApplicationIcon>
+	  <Version>0.0.1</Version>
   </PropertyGroup>
 
   <ItemGroup>

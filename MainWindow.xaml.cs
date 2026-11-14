@@ -46,6 +46,8 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
+        var version = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version;
+        VersionText.Text = version is null ? "" : $"v{version.Major}.{version.Minor}.{version.Build}";
     }
 
     private void AnalyzeAudio_Click(object sender, RoutedEventArgs e)
@@ -97,10 +99,35 @@ public partial class MainWindow : Window
         }
 
         _allResults = folderResult.Rows.ToList();
+        foreach (var result in _allResults)
+        {
+            result.PropertyChanged += Result_PropertyChanged;
+        }
+
         _days = _allResults
             .GroupBy(row => row.Day)
             .Select(group => new DayGroup(group.Key, group.ToList()))
             .ToList();
+
+        string? listenedWarning = null;
+        try
+        {
+            var listenedDays = ListenedStore.Load(folderPath);
+            foreach (var day in _days)
+            {
+                day.IsListened = listenedDays.Contains(day.Key);
+            }
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException)
+        {
+            listenedWarning = $"Impossibile leggere {ListenedStore.FileName}: {ex.Message}";
+        }
+
+        foreach (var day in _days)
+        {
+            day.PropertyChanged += Day_PropertyChanged;
+        }
+
         RebuildDisplayItems();
 
         UpdateSummary(folderResult.ValidFiles, folderResult.InvalidFiles.Count);
@@ -123,19 +150,70 @@ public partial class MainWindow : Window
             return;
         }
 
+        var storeWarnings = new[] { folderResult.ConfirmedWarning, listenedWarning }.Where(w => w is not null).ToList();
+        if (storeWarnings.Count > 0)
+        {
+            ShowMessage(string.Join("\n", storeWarnings));
+            return;
+        }
+
         HideMessage();
+    }
+
+    private void Day_PropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName != nameof(DayGroup.IsListened) || string.IsNullOrEmpty(_selectedFolderPath))
+        {
+            return;
+        }
+
+        try
+        {
+            ListenedStore.Save(_selectedFolderPath, _days.Where(day => day.IsListened).Select(day => day.Key));
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            ShowMessage($"Impossibile salvare {ListenedStore.FileName}: {ex.Message}");
+        }
+    }
+
+    private void Result_PropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(BirdNetResult.IsConfirmed))
+        {
+            SaveConfirmed();
+        }
+    }
+
+    /// <summary>Riscrive il CSV delle conferme (nello stesso ordine delle card).</summary>
+    private void SaveConfirmed()
+    {
+        if (string.IsNullOrEmpty(_selectedFolderPath))
+        {
+            return;
+        }
+
+        try
+        {
+            ConfirmedStore.Save(_selectedFolderPath, _allResults.Where(row => row.IsConfirmed));
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            ShowMessage($"Impossibile salvare {ConfirmedStore.FileName}: {ex.Message}");
+        }
     }
 
     private static FolderLoadResult ReadFolder(string folderPath)
     {
         var csvFiles = Directory
             .EnumerateFiles(folderPath, "*.csv", SearchOption.TopDirectoryOnly)
+            .Where(file => !ConfirmedStore.IsConfirmedFile(file) && !ListenedStore.IsListenedFile(file))
             .OrderBy(Path.GetFileName, StringComparer.CurrentCultureIgnoreCase)
             .ToList();
 
         if (csvFiles.Count == 0)
         {
-            return new FolderLoadResult(0, 0, [], []);
+            return new FolderLoadResult(0, 0, [], [], null);
         }
 
         var validFiles = 0;
@@ -176,7 +254,25 @@ public partial class MainWindow : Window
             row.AudioPath = ResolveAudioFilePath(folderPath, row.AudioFile);
         }
 
-        return new FolderLoadResult(csvFiles.Count, validFiles, invalidFiles, sortedRows);
+        // Riapplica le conferme salvate (prima che la UI si agganci ai cambi di stato).
+        string? confirmedWarning = null;
+        try
+        {
+            var confirmedKeys = ConfirmedStore.Load(folderPath);
+            if (confirmedKeys.Count > 0)
+            {
+                foreach (var row in sortedRows)
+                {
+                    row.IsConfirmed = confirmedKeys.Contains(row.ConfirmationKey);
+                }
+            }
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException)
+        {
+            confirmedWarning = $"Impossibile leggere {ConfirmedStore.FileName}: {ex.Message}";
+        }
+
+        return new FolderLoadResult(csvFiles.Count, validFiles, invalidFiles, sortedRows, confirmedWarning);
     }
 
     private static CsvParseResult TryReadBirdNetCsv(string csvFile)
@@ -246,7 +342,7 @@ public partial class MainWindow : Window
         }
     }
 
-    private static List<string> ParseCsvLine(string line)
+    internal static List<string> ParseCsvLine(string line)
     {
         var fields = new List<string>();
         var current = new System.Text.StringBuilder();
@@ -830,7 +926,8 @@ public partial class MainWindow : Window
                     item.EndValue,
                     item.CommonName,
                     item.ScientificName,
-                    item.Confidence));
+                    item.Confidence,
+                    item));
                 if (ReferenceEquals(item, result))
                 {
                     currentIndex = i;
@@ -891,14 +988,17 @@ public sealed class FolderLoadResult
         int csvFilesCount,
         int validFiles,
         IReadOnlyList<string> invalidFiles,
-        IReadOnlyList<BirdNetResult> rows)
+        IReadOnlyList<BirdNetResult> rows,
+        string? confirmedWarning)
     {
         CsvFilesCount = csvFilesCount;
         ValidFiles = validFiles;
         InvalidFiles = invalidFiles;
         Rows = rows;
+        ConfirmedWarning = confirmedWarning;
     }
 
+    public string? ConfirmedWarning { get; }
     public int CsvFilesCount { get; }
     public int ValidFiles { get; }
     public IReadOnlyList<string> InvalidFiles { get; }
@@ -915,6 +1015,27 @@ public sealed class DayGroup : INotifyPropertyChanged
 
     public string Name { get; }
     public List<BirdNetResult> Items { get; }
+
+    /// <summary>Chiave stabile del giorno (yyyy-MM-dd, vuota se senza data) usata per la persistenza.</summary>
+    public string Key => Items[0].DayKey;
+
+    /// <summary>Giorno segnato come ascoltato dall'utente (persistito in ascoltati.csv).</summary>
+    public bool IsListened
+    {
+        get => _isListened;
+        set
+        {
+            if (_isListened == value)
+            {
+                return;
+            }
+
+            _isListened = value;
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsListened)));
+        }
+    }
+
+    private bool _isListened;
     public bool IsExpanded
     {
         get => _isExpanded;
@@ -955,6 +1076,7 @@ public sealed class BirdNetResult : INotifyPropertyChanged
 {
     private static readonly MediaBrush EvenDayBackground = new SolidMediaBrush(MediaColor.FromRgb(247, 251, 255));
     private static readonly MediaBrush OddDayBackground = new SolidMediaBrush(MediaColor.FromRgb(255, 251, 242));
+    private static readonly MediaBrush ConfirmedBackground = new SolidMediaBrush(MediaColor.FromRgb(214, 242, 222));
 
     private MediaImageSource? _spectrogram;
     private string _spectrogramStatus = string.Empty;
@@ -965,6 +1087,32 @@ public sealed class BirdNetResult : INotifyPropertyChanged
     private double _playProgress;
 
     public string AudioPath { get; set; } = string.Empty;
+
+    private bool _isConfirmed;
+
+    /// <summary>Spezzone confermato dall'utente (persistito in confermati.csv).</summary>
+    public bool IsConfirmed
+    {
+        get => _isConfirmed;
+        set
+        {
+            if (_isConfirmed == value)
+            {
+                return;
+            }
+
+            _isConfirmed = value;
+            Notify(nameof(IsConfirmed));
+            Notify(nameof(DayBackground));
+        }
+    }
+
+    /// <summary>Identifica lo spezzone in modo stabile tra un caricamento e l'altro.</summary>
+    public string ConfirmationKey => BuildConfirmationKey(SourceCsv, StartSeconds, EndSeconds, ScientificName, AudioFile);
+
+    public static string BuildConfirmationKey(string sourceCsv, string start, string end, string scientificName, string audioFile) =>
+        string.Join('\u001F', sourceCsv, start, end, scientificName, audioFile);
+
     public string TimeRange => $"{StartSeconds} - {EndSeconds} s";
 
     /// <summary>Data e ora di inizio del file registrato, dedotte dal nome file.</summary>
@@ -1039,8 +1187,11 @@ public sealed class BirdNetResult : INotifyPropertyChanged
     public double StartValue { get; init; }
     public double EndValue { get; init; }
     public int DayIndex { get; set; }
-    public string Day => SortDate?.ToString("dd/MM/yyyy", CultureInfo.CurrentCulture) ?? "Data non riconosciuta";
-    public MediaBrush DayBackground => DayIndex % 2 == 0 ? EvenDayBackground : OddDayBackground;
+    public string DayKey => SortDate?.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture) ?? string.Empty;
+    public string Day =>SortDate?.ToString("dd/MM/yyyy", CultureInfo.CurrentCulture) ?? "Data non riconosciuta";
+    public MediaBrush DayBackground => _isConfirmed
+        ? ConfirmedBackground
+        : DayIndex % 2 == 0 ? EvenDayBackground : OddDayBackground;
     public string SourceCsv { get; init; } = string.Empty;
     public string StartSeconds { get; init; } = string.Empty;
     public string EndSeconds { get; init; } = string.Empty;

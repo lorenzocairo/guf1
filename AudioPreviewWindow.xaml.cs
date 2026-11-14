@@ -63,6 +63,7 @@ public partial class AudioPreviewWindow : Window
             _durationSeconds,
             rec.Confidence);
         PathText.Text = rec.AudioFilePath;
+        ConfirmedCheck.DataContext = rec.Source;
         PositionSlider.Maximum = _durationSeconds;
         XAxisEndText.Text = string.Format(CultureInfo.CurrentCulture, "{0:0.00} s", _durationSeconds);
         UpdateTimeText(0);
@@ -341,7 +342,8 @@ public sealed record RecordingInfo(
     double EndSeconds,
     string CommonName,
     string ScientificName,
-    string Confidence);
+    string Confidence,
+    BirdNetResult Source);
 
 public sealed class SpectrogramData
 {

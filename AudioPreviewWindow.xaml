@@ -55,6 +55,11 @@
                            Margin="0,4,0,0"
                            Foreground="#5B6470"
                            TextTrimming="CharacterEllipsis"/>
+                <CheckBox x:Name="ConfirmedCheck"
+                          Margin="0,8,0,0"
+                          Content="Confermato"
+                          FontWeight="SemiBold"
+                          IsChecked="{Binding IsConfirmed, Mode=TwoWay}"/>
             </StackPanel>
         </DockPanel>
 
