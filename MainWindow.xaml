@@ -11,13 +11,23 @@
     <Window.Resources>
         <!-- Intestazione del giorno: usata sia nella lista sia nell'overlay sticky. -->
         <DataTemplate DataType="{x:Type local:DayGroup}">
-            <Border Background="#EAF1F7"
-                    BorderBrush="#CAD8E5"
-                    BorderThickness="0,0,0,1"
+            <Border BorderThickness="0,0,0,1"
                     Padding="12,8"
                     Margin="0,8,0,4"
                     Cursor="Hand"
                     MouseLeftButtonUp="DayHeader_MouseLeftButtonUp">
+                <Border.Style>
+                    <Style TargetType="{x:Type Border}">
+                        <Setter Property="Background" Value="#EAF1F7"/>
+                        <Setter Property="BorderBrush" Value="#CAD8E5"/>
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding IsListened}" Value="True">
+                                <Setter Property="Background" Value="#D6F2DE"/>
+                                <Setter Property="BorderBrush" Value="#9FD3B0"/>
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </Border.Style>
                 <DockPanel LastChildFill="True">
                     <CheckBox DockPanel.Dock="Right"
                               Margin="18,0,0,0"
@@ -126,6 +136,13 @@
                             Padding="12,0"
                             Click="CollapseAll_Click"
                             Content="Comprimi tutto"/>
+                    <CheckBox x:Name="OnlyConfirmedCheckBox"
+                              Margin="14,0,0,0"
+                              VerticalAlignment="Center"
+                              Content="Solo confermati"
+                              ToolTip="Mostra solo le registrazioni confermate"
+                              Checked="OnlyConfirmed_Changed"
+                              Unchecked="OnlyConfirmed_Changed"/>
                 </StackPanel>
             </Grid>
         </Border>
@@ -280,7 +297,8 @@
                                                               VerticalAlignment="Center"
                                                               Content="Confermato"
                                                               IsChecked="{Binding IsConfirmed, Mode=TwoWay}"
-                                                              ToolTip="Conferma questo spezzone"/>
+                                                              Click="Confirmed_Click"
+                                                              ToolTip="Conferma questo spezzone (Shift+clic: conferma tutte le card fino all'ultima cliccata)"/>
                                                     <Button Width="28"
                                                             Height="24"
                                                             Padding="0"

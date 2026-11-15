@@ -106,7 +106,7 @@ public partial class MainWindow : Window
 
         _days = _allResults
             .GroupBy(row => row.Day)
-            .Select(group => new DayGroup(group.Key, group.ToList()))
+            .Select(group => new DayGroup(group.Key, group.ToList()) { OnlyConfirmed = OnlyConfirmedCheckBox.IsChecked == true })
             .ToList();
 
         string? listenedWarning = null;
@@ -179,10 +179,59 @@ public partial class MainWindow : Window
 
     private void Result_PropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
-        if (e.PropertyName == nameof(BirdNetResult.IsConfirmed))
+        if (e.PropertyName == nameof(BirdNetResult.IsConfirmed) && !_suppressConfirmedSave)
         {
             SaveConfirmed();
         }
+    }
+
+    private BirdNetResult? _lastConfirmClicked;
+    private bool _suppressConfirmedSave;
+
+    /// <summary>
+    /// Shift+clic su "Confermato": conferma tutte le card comprese (nell'ordine mostrato) tra
+    /// l'ultima card cliccata e questa.
+    /// </summary>
+    private void Confirmed_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not FrameworkElement { DataContext: BirdNetResult clicked })
+        {
+            return;
+        }
+
+        var previous = _lastConfirmClicked;
+        _lastConfirmClicked = clicked;
+
+        if (previous is null
+            || ReferenceEquals(previous, clicked)
+            || !System.Windows.Input.Keyboard.Modifiers.HasFlag(System.Windows.Input.ModifierKeys.Shift)
+            || !clicked.IsConfirmed)
+        {
+            return;
+        }
+
+        var ordered = _displayItems.OfType<CardRow>().SelectMany(row => row.Cards).ToList();
+        var from = ordered.IndexOf(previous);
+        var to = ordered.IndexOf(clicked);
+        if (from < 0 || to < 0)
+        {
+            return;
+        }
+
+        _suppressConfirmedSave = true;
+        try
+        {
+            for (var i = Math.Min(from, to); i <= Math.Max(from, to); i++)
+            {
+                ordered[i].IsConfirmed = true;
+            }
+        }
+        finally
+        {
+            _suppressConfirmedSave = false;
+        }
+
+        SaveConfirmed();
     }
 
     /// <summary>Riscrive il CSV delle conferme (nello stesso ordine delle card).</summary>
@@ -685,12 +734,24 @@ public partial class MainWindow : Window
         ResultsList.ScrollIntoView(group);
     }
 
+    private void OnlyConfirmed_Changed(object sender, RoutedEventArgs e)
+    {
+        var anchor = CaptureScrollAnchor();
+        foreach (var group in _days)
+        {
+            group.OnlyConfirmed = OnlyConfirmedCheckBox.IsChecked == true;
+        }
+
+        RebuildDisplayItems(anchor);
+    }
+
     private List<CardRow> BuildRows(DayGroup group)
     {
-        var rows = new List<CardRow>((group.Items.Count + _columnCount - 1) / _columnCount);
-        for (var i = 0; i < group.Items.Count; i += _columnCount)
+        var items = group.VisibleItems;
+        var rows = new List<CardRow>((items.Count + _columnCount - 1) / _columnCount);
+        for (var i = 0; i < items.Count; i += _columnCount)
         {
-            var cards = group.Items.GetRange(i, Math.Min(_columnCount, group.Items.Count - i)).ToArray();
+            var cards = items.GetRange(i, Math.Min(_columnCount, items.Count - i)).ToArray();
             rows.Add(new CardRow(cards, _columnCount, group));
         }
 
@@ -831,6 +892,11 @@ public partial class MainWindow : Window
         object? target = null;
         foreach (var group in _days)
         {
+            if (group.VisibleItems.Count == 0)
+            {
+                continue;
+            }
+
             items.Add(group);
             if (ReferenceEquals(group, anchor))
             {
@@ -979,6 +1045,7 @@ public partial class MainWindow : Window
         ResultsList.IsEnabled = !isLoading;
         ExpandAllButton.IsEnabled = !isLoading;
         CollapseAllButton.IsEnabled = !isLoading;
+        OnlyConfirmedCheckBox.IsEnabled = !isLoading;
     }
 }
 
@@ -1054,7 +1121,29 @@ public sealed class DayGroup : INotifyPropertyChanged
     public event PropertyChangedEventHandler? PropertyChanged;
 
     private bool _isExpanded = true;
-    public int Count => Items.Count;
+
+    /// <summary>Se attivo, il giorno mostra solo le registrazioni confermate.</summary>
+    public bool OnlyConfirmed
+    {
+        get => _onlyConfirmed;
+        set
+        {
+            if (_onlyConfirmed == value)
+            {
+                return;
+            }
+
+            _onlyConfirmed = value;
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Count)));
+        }
+    }
+
+    private bool _onlyConfirmed;
+
+    public List<BirdNetResult> VisibleItems =>
+        _onlyConfirmed ? Items.Where(item => item.IsConfirmed).ToList() : Items;
+
+    public int Count => VisibleItems.Count;
     public string Title => $"{(IsExpanded ? "▾" : "▸")}  {Name}";
 }
 
