@@ -25,6 +25,13 @@ public partial class AnalyzeWindow : Window
         _env = new PythonEnvironment(appData);
         _runner = new BirdNetRunner(_env);
 
+        // Thread limitati ai core logici disponibili, batch a un massimo prudente
+        var cores = Math.Max(1, Environment.ProcessorCount);
+        ThreadsSlider.Maximum = cores;
+        ThreadsSlider.Value = Math.Max(1, cores / 2);
+        BatchSlider.Maximum = 8;
+        UpdatePerfHint();
+
         PopulateWeekCombo();
         RefreshEnvStatus();
     }
@@ -99,20 +106,31 @@ public partial class AnalyzeWindow : Window
 
     // --- Slider labels ---
 
-    private void MinConfSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
-    { if (MinConfLabel is not null) MinConfLabel.Text = e.NewValue.ToString("0.00", CultureInfo.InvariantCulture); }
-
-    private void SensitivitySlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
-    { if (SensitivityLabel is not null) SensitivityLabel.Text = e.NewValue.ToString("0.00", CultureInfo.InvariantCulture); }
-
-    private void OverlapSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
-    { if (OverlapLabel is not null) OverlapLabel.Text = e.NewValue.ToString("0.0", CultureInfo.InvariantCulture); }
+    private static bool TryParseInRange(string name, string text, double min, double max, out double value)
+    {
+        if (!double.TryParse(text.Trim().Replace(',', '.'), NumberStyles.Float, CultureInfo.InvariantCulture, out value)
+            || value < min || value > max)
+        {
+            System.Windows.MessageBox.Show(
+                $"Il valore di \"{name}\" non è valido. Inserisci un numero tra {min.ToString(CultureInfo.InvariantCulture)} e {max.ToString(CultureInfo.InvariantCulture)}.",
+                "Valore non valido", MessageBoxButton.OK, MessageBoxImage.Warning);
+            return false;
+        }
+        return true;
+    }
 
     private void ThreadsSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
-    { if (ThreadsLabel is not null) ThreadsLabel.Text = ((int)e.NewValue).ToString(); }
+    { if (ThreadsLabel is not null) ThreadsLabel.Text = ((int)e.NewValue).ToString(); UpdatePerfHint(); }
 
     private void BatchSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
-    { if (BatchLabel is not null) BatchLabel.Text = $"Batch: {(int)e.NewValue}"; }
+        => UpdatePerfHint();
+
+    private void UpdatePerfHint()
+    {
+        if (BatchLabel is null || ThreadsSlider is null || BatchSlider is null) return;
+        BatchLabel.Text = $"Thread max = core disponibili ({Environment.ProcessorCount}), batch max {(int)BatchSlider.Maximum}. " +
+                          $"Valori alti usano molta RAM: se compare un errore, abbassali. Attuale: {(int)ThreadsSlider.Value} thread, batch {(int)BatchSlider.Value}.";
+    }
 
     private void LatBox_TextChanged(object sender, TextChangedEventArgs e) { }
     private void LonBox_TextChanged(object sender, TextChangedEventArgs e) { }
@@ -181,6 +199,10 @@ public partial class AnalyzeWindow : Window
             return null;
         }
 
+        if (!TryParseInRange("Confidenza minima", MinConfBox.Text, 0.01, 0.99, out var minConf)) { MinConfBox.Focus(); return null; }
+        if (!TryParseInRange("Sensitivity", SensitivityBox.Text, 0.5, 1.5, out var sensitivity)) { SensitivityBox.Focus(); return null; }
+        if (!TryParseInRange("Overlap (s)", OverlapBox.Text, 0.0, 2.9, out var overlap)) { OverlapBox.Focus(); return null; }
+
         var lat = -1.0;
         var lon = -1.0;
 
@@ -204,9 +226,9 @@ public partial class AnalyzeWindow : Window
             Latitude = lat,
             Longitude = lon,
             Week = week,
-            MinConfidence = MinConfSlider.Value,
-            Sensitivity = SensitivitySlider.Value,
-            Overlap = OverlapSlider.Value,
+            MinConfidence = minConf,
+            Sensitivity = sensitivity,
+            Overlap = overlap,
             Threads = (int)ThreadsSlider.Value,
             BatchSize = (int)BatchSlider.Value,
             Locale = locale,

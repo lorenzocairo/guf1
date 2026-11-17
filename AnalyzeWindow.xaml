@@ -87,48 +87,42 @@
                         <Grid Margin="0,0,0,8">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="160"/>
+                                <ColumnDefinition Width="Auto"/>
                                 <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="50"/>
                             </Grid.ColumnDefinitions>
                             <TextBlock Style="{StaticResource Label}" Text="Confidenza minima"/>
-                            <Slider Grid.Column="1" x:Name="MinConfSlider"
-                                    Minimum="0.01" Maximum="0.99" Value="0.1"
-                                    SmallChange="0.01" LargeChange="0.1" TickFrequency="0.01"
-                                    ValueChanged="MinConfSlider_ValueChanged"/>
-                            <TextBlock Grid.Column="2" x:Name="MinConfLabel"
-                                       HorizontalAlignment="Right" VerticalAlignment="Center" Text="0.10"/>
+                            <TextBox Grid.Column="1" x:Name="MinConfBox" Text="0.10" Width="80"
+                                     HorizontalAlignment="Left" Padding="6,4" VerticalContentAlignment="Center"/>
+                            <TextBlock Grid.Column="2" Style="{StaticResource Label}" Foreground="#8A93A0"
+                                       FontSize="11" Margin="8,0,0,0" Text="(0.01–0.99)"/>
                         </Grid>
 
                         <!-- Sensitivity -->
                         <Grid Margin="0,0,0,8">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="160"/>
+                                <ColumnDefinition Width="Auto"/>
                                 <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="50"/>
                             </Grid.ColumnDefinitions>
                             <TextBlock Style="{StaticResource Label}" Text="Sensitivity"/>
-                            <Slider Grid.Column="1" x:Name="SensitivitySlider"
-                                    Minimum="0.5" Maximum="1.5" Value="1.0"
-                                    SmallChange="0.05" LargeChange="0.1"
-                                    ValueChanged="SensitivitySlider_ValueChanged"/>
-                            <TextBlock Grid.Column="2" x:Name="SensitivityLabel"
-                                       HorizontalAlignment="Right" VerticalAlignment="Center" Text="1.00"/>
+                            <TextBox Grid.Column="1" x:Name="SensitivityBox" Text="1.00" Width="80"
+                                     HorizontalAlignment="Left" Padding="6,4" VerticalContentAlignment="Center"/>
+                            <TextBlock Grid.Column="2" Style="{StaticResource Label}" Foreground="#8A93A0"
+                                       FontSize="11" Margin="8,0,0,0" Text="(0.5–1.5)"/>
                         </Grid>
 
                         <!-- Overlap -->
                         <Grid>
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="160"/>
+                                <ColumnDefinition Width="Auto"/>
                                 <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="50"/>
                             </Grid.ColumnDefinitions>
                             <TextBlock Style="{StaticResource Label}" Text="Overlap (s)"/>
-                            <Slider Grid.Column="1" x:Name="OverlapSlider"
-                                    Minimum="0.0" Maximum="2.9" Value="0.0"
-                                    SmallChange="0.1" LargeChange="0.5"
-                                    ValueChanged="OverlapSlider_ValueChanged"/>
-                            <TextBlock Grid.Column="2" x:Name="OverlapLabel"
-                                       HorizontalAlignment="Right" VerticalAlignment="Center" Text="0.0"/>
+                            <TextBox Grid.Column="1" x:Name="OverlapBox" Text="0.0" Width="80"
+                                     HorizontalAlignment="Left" Padding="6,4" VerticalContentAlignment="Center"/>
+                            <TextBlock Grid.Column="2" Style="{StaticResource Label}" Foreground="#8A93A0"
+                                       FontSize="11" Margin="8,0,0,0" Text="(0–2.9)"/>
                         </Grid>
                     </StackPanel>
                 </Border>
@@ -221,7 +215,7 @@
                                     Minimum="1" Maximum="32" Value="1" IsSnapToTickEnabled="True" TickFrequency="1"
                                     ValueChanged="BatchSlider_ValueChanged"/>
                         </Grid>
-                        <TextBlock x:Name="BatchLabel" Foreground="#5B6470" FontSize="11" Margin="0,0,0,8" Text="Batch: 1"/>
+                        <TextBlock x:Name="BatchLabel" Foreground="#5B6470" FontSize="11" Margin="0,0,0,8" TextWrapping="Wrap" Text=""/>
 
                         <Grid>
                             <Grid.ColumnDefinitions>
