@@ -48,6 +48,28 @@
             </Border>
         </DataTemplate>
     </Window.Resources>
+    <Window.InputBindings>
+        <KeyBinding Key="N" Modifiers="Ctrl" Command="{x:Static local:MainWindow.AnalyzeCommand}"/>
+        <KeyBinding Key="O" Modifiers="Ctrl" Command="{x:Static local:MainWindow.OpenFolderCommand}"/>
+    </Window.InputBindings>
+    <Window.CommandBindings>
+        <CommandBinding Command="{x:Static local:MainWindow.AnalyzeCommand}" Executed="AnalyzeAudio_Click"/>
+        <CommandBinding Command="{x:Static local:MainWindow.OpenFolderCommand}" Executed="SelectFolder_Click"/>
+    </Window.CommandBindings>
+    <DockPanel>
+    <Menu DockPanel.Dock="Top">
+        <MenuItem Header="_File" SubmenuOpened="FileMenu_SubmenuOpened">
+            <MenuItem Header="_Analizza audio…"
+                      Command="{x:Static local:MainWindow.AnalyzeCommand}"
+                      InputGestureText="Ctrl+N"/>
+            <MenuItem Header="_Apri cartella risultati…"
+                      Command="{x:Static local:MainWindow.OpenFolderCommand}"
+                      InputGestureText="Ctrl+O"/>
+            <MenuItem x:Name="RecentMenu" Header="Apri _recenti"/>
+            <Separator/>
+            <MenuItem Header="_Esci" InputGestureText="Alt+F4" Click="Exit_Click"/>
+        </MenuItem>
+    </Menu>
     <Grid Margin="18">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
@@ -58,19 +80,6 @@
         </Grid.RowDefinitions>
 
         <DockPanel Grid.Row="0" LastChildFill="True" Margin="0,0,0,14">
-            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
-                <Button MinWidth="150"
-                        Height="36"
-                        Padding="14,0"
-                        Margin="0,0,8,0"
-                        Click="AnalyzeAudio_Click"
-                        Content="Analizza audio…"/>
-                <Button MinWidth="150"
-                        Height="36"
-                        Padding="14,0"
-                        Click="SelectFolder_Click"
-                        Content="Seleziona cartella CSV"/>
-            </StackPanel>
             <StackPanel>
                 <TextBlock Text="Risultati BirdNET" FontSize="24" FontWeight="SemiBold" Foreground="#20242A"/>
                 <TextBlock Text="Carica i CSV validi da una cartella locale e mostra i rilevamenti come card con spettrogramma, divisi per giorno."
@@ -394,4 +403,5 @@
                    FontSize="11"
                    Foreground="#8A939E"/>
     </Grid>
+    </DockPanel>
 </Window>

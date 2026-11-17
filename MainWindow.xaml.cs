@@ -50,6 +50,12 @@ public partial class MainWindow : Window
         VersionText.Text = version is null ? "" : $"v{version.Major}.{version.Minor}.{version.Build}";
     }
 
+    public static readonly System.Windows.Input.RoutedUICommand AnalyzeCommand =
+        new("Analizza audio", nameof(AnalyzeCommand), typeof(MainWindow));
+
+    public static readonly System.Windows.Input.RoutedUICommand OpenFolderCommand =
+        new("Apri cartella risultati", nameof(OpenFolderCommand), typeof(MainWindow));
+
     private void AnalyzeAudio_Click(object sender, RoutedEventArgs e)
     {
         var win = new AnalyzeWindow { Owner = this };
@@ -59,23 +65,90 @@ public partial class MainWindow : Window
 
     private async void SelectFolder_Click(object sender, RoutedEventArgs e)
     {
-        using var dialog = new System.Windows.Forms.FolderBrowserDialog
+        // Dialog di apertura file con nome fittizio: a differenza del selettore di sole cartelle
+        // mostra anche i file (CSV) contenuti, cosi' si capisce com'e' fatta ogni cartella.
+        // Si naviga nella cartella voluta e si preme Apri: conta la cartella corrente.
+        var dialog = new Microsoft.Win32.OpenFileDialog
         {
-            Description = "Seleziona la cartella che contiene i CSV BirdNET",
-            UseDescriptionForTitle = true,
-            ShowNewFolderButton = false
+            Title = "Apri cartella risultati: entra nella cartella con i CSV BirdNET e premi Apri",
+            Filter = "File CSV (*.csv)|*.csv|Tutti i file (*.*)|*.*",
+            CheckFileExists = false,
+            CheckPathExists = true,
+            ValidateNames = false,
+            FileName = "Seleziona questa cartella",
+            InitialDirectory = Directory.Exists(_selectedFolderPath) ? _selectedFolderPath : string.Empty
         };
 
-        if (dialog.ShowDialog() != System.Windows.Forms.DialogResult.OK)
+        if (dialog.ShowDialog(this) != true)
         {
             return;
         }
 
-        await LoadFolderAsync(dialog.SelectedPath);
+        var path = dialog.FileName;
+        var folder = Directory.Exists(path) ? path : Path.GetDirectoryName(path);
+        if (string.IsNullOrEmpty(folder) || !Directory.Exists(folder))
+        {
+            return;
+        }
+
+        await LoadFolderAsync(folder);
+    }
+
+    private void Exit_Click(object sender, RoutedEventArgs e) => Close();
+
+    private void FileMenu_SubmenuOpened(object sender, RoutedEventArgs e)
+    {
+        if (!ReferenceEquals(e.OriginalSource, sender))
+        {
+            return;
+        }
+
+        RebuildRecentMenu();
+    }
+
+    private void RebuildRecentMenu()
+    {
+        RecentMenu.Items.Clear();
+        var recent = RecentFoldersStore.Load();
+
+        if (recent.Count == 0)
+        {
+            RecentMenu.Items.Add(new MenuItem { Header = "(nessuna)", IsEnabled = false });
+            return;
+        }
+
+        for (var i = 0; i < recent.Count; i++)
+        {
+            var folder = recent[i];
+            // Il doppio underscore evita che '_' nel percorso diventi un tasto di accesso rapido.
+            var item = new MenuItem
+            {
+                Header = $"{i + 1}  {folder.Replace("_", "__")}",
+                ToolTip = folder
+            };
+            item.Click += async (_, _) =>
+            {
+                if (!Directory.Exists(folder))
+                {
+                    RecentFoldersStore.Remove(folder);
+                    ShowMessage($"La cartella non esiste piu': {folder}");
+                    return;
+                }
+
+                await LoadFolderAsync(folder);
+            };
+            RecentMenu.Items.Add(item);
+        }
+
+        RecentMenu.Items.Add(new Separator());
+        var clear = new MenuItem { Header = "Svuota elenco" };
+        clear.Click += (_, _) => RecentFoldersStore.Clear();
+        RecentMenu.Items.Add(clear);
     }
 
     private async Task LoadFolderAsync(string folderPath)
     {
+        RecentFoldersStore.Add(folderPath);
         _selectedFolderPath = folderPath;
         SelectedFolderText.Text = folderPath;
         HideMessage();
